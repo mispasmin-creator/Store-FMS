@@ -291,59 +291,98 @@ const routes: RouteAttributes[] = [
     icon: <FilePlus2 size={20} />,
     element: <MakePayment />,
     notifications: (sheets: any[]) => {
-        if (!sheets || !Array.isArray(sheets) || sheets.length < 2) return 0;
+        // ✅ SIMPLIFIED: Since we're only passing paymentsSheet now
+        const paymentsData = Array.isArray(sheets[0]) ? sheets[0] : [];
         
-        const indentData = Array.isArray(sheets[0]) ? sheets[0] : [];
-        const paymentHistoryData = Array.isArray(sheets[1]) ? sheets[1] : [];
+        if (paymentsData.length === 0) {
+            console.log('⚠️ No payments data available');
+            return 0;
+        }
         
-        // Create lookup map from payment history (same as your component)
-        const paymentMap = new Map(
-            paymentHistoryData.map((item: any) => [
-                item.uniqueNumber || item.indentNumber,
-                item.timestamp
-            ])
-        );
+        console.log('📊 Total payments records:', paymentsData.length);
         
-        let count = 0;
-        indentData.forEach((sheet: any) => {
-            const planned7IsPresent =
-                sheet.planned7 !== undefined &&
-                sheet.planned7 !== null &&
-                sheet.planned7.toString().trim() !== '';
-            const hasMakePaymentLink = 
-                sheet.makePaymentLink && 
-                sheet.makePaymentLink.toString().trim() !== '';
+        // ✅ Count from Payments sheet: Planned has value BUT Actual is empty
+        const pendingCount = paymentsData.filter((payment: any) => {
+            const planned = String(payment?.planned || '').trim();
+            const actual = String(payment?.actual || '').trim();
             
-            // Check if payment already exists in payment history (same as your component)
-            const indentNumber = sheet.indentNumber || sheet.indentNo;
-            const hasExistingPayment = paymentMap.has(indentNumber);
+            const hasPlanned = planned !== '';
+            const noActual = actual === '';
             
-            if (planned7IsPresent && !hasExistingPayment && hasMakePaymentLink) {
-                count++;
+            const shouldCount = hasPlanned && noActual;
+            
+            // Debug logging
+            if (payment?.uniqueNo) {
+                console.log(`🔍 ${payment.uniqueNo}:`, {
+                    planned,
+                    actual,
+                    hasPlanned,
+                    noActual,
+                    shouldCount
+                });
             }
-        });
+            
+            return shouldCount;
+        }).length;
         
-        return count;
+        console.log('✅ Pending payments count:', pendingCount);
+        return pendingCount;
     },
 },
-// {
-//     path: 'Payment-Status',
-//     name: 'Payment Status',
-//     icon: <RotateCcw size={20} />,
-//     element: <PaymentStatus />,
-//     notifications: (paymentHistorySheet: any[]) => {
-//         if (!paymentHistorySheet || paymentHistorySheet.length === 0) {
-//             return 0;
-//         }
-        
-//         // Count records where status is "Yes"
-//         return paymentHistorySheet.filter((record: any) => {
-//             const status = record.status || record.Status || '';
-//             return status.toString().trim().toLowerCase() === 'yes';
-//         }).length;
-//     }
-// },
-   
+
+{
+    path: 'Payment-Status',
+    name: 'HOD Approval',
+    icon: <RotateCcw size={20} />,
+    element: <PaymentStatus />,
+    gateKey: 'paymentStatus',
+    notifications: (sheetsData: any[]) => {
+        try {
+            // ✅ IMPORTANT: Expect [poMasterSheet, paymentsSheet, user] from Sidebar
+            const [poMasterSheet = [], paymentsSheet = []] = sheetsData;
+            
+            if (!Array.isArray(poMasterSheet) || poMasterSheet.length === 0) {
+                return 0;
+            }
+
+            // ✅ Get the current user's firm from context (you'll need to pass this)
+            // For now, we'll assume we need to count all firms or filter by user.firmNameMatch
+            // Since we can't access user here, we'll remove firm filtering
+            
+            // ✅ FILTER 1: Get PO numbers that already have payments
+            const paidPONumbers = new Set(
+                (paymentsSheet || []).map((payment: any) => payment.poNumber)
+            );
+
+            // ✅ FILTER 2: Only PENDING status and NOT already paid
+            const pendingItems = poMasterSheet.filter((record: any) => {
+                const poNumber = record?.poNumber || '';
+                const status = (record?.status || '').toString().trim().toLowerCase();
+                
+                // Check if NOT paid yet AND status is pending/empty
+                const notPaid = !paidPONumbers.has(poNumber);
+                const isPending = status === 'pending' || status === '' || status === undefined;
+                
+                return notPaid && isPending;
+            });
+
+            // ✅ FILTER 3: Remove duplicate PO numbers (same as your page logic)
+            const uniquePOMap = new Map();
+            pendingItems.forEach(item => {
+                const poNumber = item?.poNumber || '';
+                if (poNumber && !uniquePOMap.has(poNumber)) {
+                    uniquePOMap.set(poNumber, item);
+                }
+            });
+
+            return uniquePOMap.size;
+            
+        } catch (error) {
+            console.error('Error calculating Payment-Status notifications:', error);
+            return 0;
+        }
+    }
+},   
 
     {
     path: 'Quality-Check-In-Received-Item',

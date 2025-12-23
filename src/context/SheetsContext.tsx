@@ -12,6 +12,7 @@ import type {
     FullkittingSheet,
     PaymentHistory,
 } from '@/types';
+import type { PaymentsSheet } from '@/types/sheets';
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -59,6 +60,9 @@ interface SheetsState {
     paymentHistorySheet: PaymentHistory[];
     paymentHistoryLoading: boolean;
     updatePaymentHistorySheet: () => void;
+    paymentsSheet: PaymentsSheet[];
+    paymentsLoading: boolean;
+    updatePaymentsSheet: () => void;
 }
 
 const SheetsContext = createContext<SheetsState | null>(null);
@@ -88,6 +92,9 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
     const [allLoading, setAllLoading] = useState(true);
 
     const [storeInLoading, setStoreInLoading] = useState(true);
+    const [paymentsSheet, setPaymentsSheet] = useState<PaymentsSheet[]>([]);
+    const [paymentsLoading, setPaymentsLoading] = useState(true);
+
 
     // ✅ ADD PAYMENT HISTORY STATE
     const [paymentHistorySheet, setPaymentHistorySheet] = useState<PaymentHistory[]>([]);
@@ -167,6 +174,20 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
             });
     }
 
+    function updatePaymentsSheet() {
+    setPaymentsLoading(true);
+    fetchSheet('Payments')
+        .then((res) => {
+            setPaymentsSheet(res as unknown as PaymentsSheet[]);
+            setPaymentsLoading(false);
+        })
+        .catch((error) => {
+            console.error('Error fetching PAYMENTS:', error);
+            setPaymentsLoading(false);
+        });
+}
+
+
     // ✅ ADD PAYMENT HISTORY FUNCTION
     function updatePaymentHistorySheet() {
         setPaymentHistoryLoading(true);
@@ -195,9 +216,9 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
         updatePcReportSheet();
         updateFullkittingSheet();
         
-        // ✅ ADD PAYMENT HISTORY TO UPDATE ALL
         updatePaymentHistorySheet();
-        
+        updatePaymentsSheet();
+
         setAllLoading(false);
     }
 
@@ -272,6 +293,9 @@ export const SheetsProvider = ({ children }: { children: React.ReactNode }) => {
                 paymentHistorySheet,
                 paymentHistoryLoading,
                 updatePaymentHistorySheet,
+                paymentsSheet,
+                paymentsLoading,
+                updatePaymentsSheet,
             }}
         >
             {children}

@@ -1,4 +1,4 @@
-export type Sheet = 'INDENT' | 'RECEIVED' | 'MASTER' | 'USER' | 'PO MASTER' | "INVENTORY" | "ISSUE" | "STORE IN" | "TALLY ENTRY" | "PC REPORT" | "Fullkitting" | "Payment History" ;
+export type Sheet = 'INDENT' | 'RECEIVED' | 'MASTER' | 'USER' | 'PO MASTER' | "INVENTORY" | "ISSUE" | "STORE IN" | "TALLY ENTRY" | "PC REPORT" | "Fullkitting" | "Payment History" | "Payments";
 
 export type IndentSheet = {
     issuedStatus: any;
@@ -199,6 +199,12 @@ export type PoMasterSheet = {
     deliveryDays: number;
     deliveryType: string;
     firmNameMatch: string;
+     totalPaidAmount?: number;
+    outstandingAmount?: number;
+    status?: string; // This is the most important field
+    deliveryDate?: string;
+    paymentTerms?: string;
+    rowIndex?: number;
 
 };
 
@@ -281,6 +287,32 @@ export type UserPermissions = {
     pendingPo: boolean; // ✅ CHANGE: lowercase 'o' - "Pending PO" becomes "pendingPo"
     inventory:boolean;
 };
+
+export interface PaymentsSheet {
+    timestamp: string;
+    uniqueNo: string; // Auto-generated
+    partyName: string;
+    poNumber: string;
+    totalPoAmount: number;
+    internalCode: string;
+    product: string;
+    deliveryDate: string;
+    paymentTerms: string;
+    numberOfDays: number;
+    pdf: string;
+    payAmount: number; // ✅ NEW: This is what user enters in popup
+    file: string; // ✅ NEW: Uploaded file URL
+    remark: string; // ✅ NEW: Remarks field
+    totalPaidAmount: number;
+    outstandingAmount: number;
+    status: string;
+    planned: string;
+    actual: string;
+    delay: string;
+    status1: string;
+    paymentForm: string;
+    rowIndex?: number;
+}
 
 export const allPermissionKeys = [
     "administrate",

@@ -25,7 +25,8 @@ export type Sheet =
   | 'TALLY ENTRY' 
   | 'PC REPORT'
   | 'FULLKITTING'
-  | 'Payment History'; // ✅ ADD THIS
+  | 'Payment History'
+  |'Payments' ;// ✅ ADD THIS
 
 // Your existing PoMasterSheet interface
 export interface PoMasterSheet {
@@ -61,4 +62,29 @@ export interface PoMasterSheet {
     term10: string;
     discountPercent?: number;
     gstPercent?: number;
+}
+export interface PaymentsSheet {
+    timestamp: string;
+    uniqueNo: string; // Auto-generated
+    partyName: string;
+    poNumber: string;
+    totalPoAmount: number;
+    internalCode: string;
+    product: string;
+    deliveryDate: string;
+    paymentTerms: string;
+    numberOfDays: number;
+    pdf: string;
+    payAmount: number;
+    file: string;
+    remark: string;
+    totalPaidAmount: number;
+    outstandingAmount: number;
+    status: string;
+    planned: string;
+    actual: string;
+    delay: string;
+    status1: string;
+    paymentForm: string;
+    rowIndex?: number;
 }

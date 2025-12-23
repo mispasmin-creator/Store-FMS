@@ -34,6 +34,7 @@ export default ({ items }: SidebarProps) => {
         tallyEntrySheet,
         receivedSheet,
         paymentHistorySheet,
+        paymentsSheet,
         updateAll, 
         allLoading 
     } = useSheets();
@@ -102,7 +103,7 @@ if (item.notifications) {
             break;
         case 'Make-Payment':
     // Pass both indentSheet and paymentHistorySheet for Make Payment
-            sheetData = [indentSheet || [], paymentHistorySheet || []];
+            sheetData = [paymentsSheet || []];
             break;
         case 'Full-Kiting':
             sheetData = fullkittingSheet || [];
@@ -127,7 +128,7 @@ if (item.notifications) {
             sheetData = storeInSheet || [];
             break;
         case 'Payment-Status':
-            sheetData = paymentHistorySheet || [];
+            sheetData = [poMasterSheet || [], paymentsSheet || []];
             break;
         case 'DBforPc':
             sheetData = pcReportSheet || [];

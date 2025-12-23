@@ -152,7 +152,7 @@ export default function POHistory() {
 
     return (
         <div>
-            <Heading heading="PO History" subtext="View purchase orders">
+            <Heading heading="PO History " subtext="View purchase orders">
                 <Package2 size={50} className="text-primary" />
             </Heading>
 

@@ -118,6 +118,65 @@ export async function fetchSheet(
         console.log(`✅ Processed ${filteredData.length} payment history records`);
         return filteredData;
     }
+    // In your fetchSheet function, add a case for 'Payments':
+// Add this to your fetchers.ts file - UPDATE the Payments sheet parsing section
+
+// In your fetchSheet function, update the Payments case:
+if (sheetName === 'Payments') {
+    console.log("💰 Processing Payments sheet data:", raw.rows);
+    
+    if (!raw.rows || !Array.isArray(raw.rows)) {
+        console.warn("⚠️ No payments rows found");
+        return [];
+    }
+
+    const paymentsData = raw.rows.map((record: any, index: number) => {
+        console.log(`📝 Payments record ${index}:`, record);
+        
+        // ✅ Handle all possible field name variations from Google Sheets
+        return {
+            rowIndex: index + 2, // Google Sheets rows start at 2
+            timestamp: record.Timestamp || record.timestamp || '',
+            uniqueNo: record['Unique No.'] || record['Unique No'] || record.uniqueNo || record.UniqueNo || '',
+            partyName: record['Party Name'] || record.partyName || record.PartyName || '',
+            poNumber: record['PO Number'] || record.poNumber || record.PONumber || record['PO No'] || '',
+            totalPoAmount: parseFloat(record['Total PO Amount'] || record.totalPoAmount || record.TotalPOAmount || 0),
+            internalCode: record['Internal Code'] || record.internalCode || record.InternalCode || '',
+            product: record.Product || record.product || '',
+            deliveryDate: record['Delivery Date'] || record.deliveryDate || record.DeliveryDate || '',
+            paymentTerms: record['Payment Terms'] || record.paymentTerms || record.PaymentTerms || '',
+            numberOfDays: parseInt(record['Number Of Days'] || record['Number of Days'] || record.numberOfDays || record.NumberOfDays || 0),
+            pdf: record.PDF || record.pdf || '',
+            payAmount: parseFloat(record['Pay Amount'] || record.payAmount || record.PayAmount || 0),
+            file: record.File || record.file || '',
+            remark: record.Remark || record.remark || record.Remarks || '',
+            totalPaidAmount: parseFloat(record['Total Paid Amount'] || record['Total Paid\nAmount'] || record.totalPaidAmount || record.TotalPaidAmount || 0),
+            outstandingAmount: parseFloat(record['Outstanding Amount'] || record.outstandingAmount || record.OutstandingAmount || 0),
+            status: record.Status || record.status || '',
+            planned: record.Planned || record.planned || '',
+            actual: record.Actual || record.actual || '',
+            delay: record.Delay || record.delay || '',
+            status1: record.Status1 || record.status1 || '',
+            paymentForm: record['Payment Form'] || record.paymentForm || record.PaymentForm || '',
+            firmNameMatch: record['Firm Name Match'] || record.firmNameMatch || record.FirmNameMatch || '',
+        };
+    });
+
+    // Filter out completely empty rows
+    const filteredData = paymentsData.filter((record: any) => 
+        record.timestamp || 
+        record.uniqueNo || 
+        record.poNumber || 
+        record.partyName ||
+        record.planned // ✅ Also keep if planned date exists
+    );
+
+    console.log(`✅ Processed ${filteredData.length} payments records`);
+    console.log('📊 Sample records:', filteredData.slice(0, 2));
+    
+    return filteredData;
+}
+
 
     if (sheetName === 'MASTER') {
         const data = raw.options;
@@ -421,6 +480,7 @@ export async function fetchSheet(
 
     return raw.rows.filter((r: IndentSheet) => r.timestamp !== '');
 }
+
 
 export async function postToSheet(
     data:
