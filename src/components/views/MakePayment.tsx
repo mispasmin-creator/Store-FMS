@@ -477,7 +477,7 @@ export default function MakePayment() {
                                 <DollarSign size={28} className="text-white" />
                             </div>
                             <div>
-                                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Make Payment</h1>
+                                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Make Payment </h1>
                                 <p className="text-gray-600">Select payments to mark as completed and submit</p>
                             </div>
                         </div>
@@ -703,3 +703,4 @@ export default function MakePayment() {
         </div>
     );
 }
+
