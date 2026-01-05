@@ -41,56 +41,71 @@ export default function POHistory() {
     const [historyData, setHistoryData] = useState<HistoryData[]>([]);
 
     useEffect(() => {
-        try {
-            // Safe array check
-            const safePoMasterSheet: POMasterRecord[] = Array.isArray(poMasterSheet) ? poMasterSheet : [];
+    try {
+        // Safe array check
+        const safePoMasterSheet: POMasterRecord[] = Array.isArray(poMasterSheet) ? poMasterSheet : [];
+        
+        const filteredByFirm = safePoMasterSheet.filter((sheet: POMasterRecord) => 
+            user?.firmNameMatch?.toLowerCase() === "all" || 
+            sheet?.firmNameMatch === user?.firmNameMatch
+        );
+        
+        // Create a Map to store unique PO numbers with their data
+        const uniquePOMap = new Map<string, POMasterRecord>();
+        
+        // Filter duplicates - keep only the first occurrence of each PO number
+        filteredByFirm.forEach((sheet: POMasterRecord) => {
+            const poNumber = sheet?.poNumber;
+            if (poNumber && !uniquePOMap.has(poNumber)) {
+                uniquePOMap.set(poNumber, sheet);
+            }
+        });
+        
+        // Convert Map back to array
+        const uniquePoMasterData = Array.from(uniquePOMap.values());
+        
+        const processedHistoryData: HistoryData[] = uniquePoMasterData.map((sheet: POMasterRecord) => ({
+            approvedBy: sheet?.approvedBy || '',
+            poCopy: sheet?.pdf || '',
+            poNumber: sheet?.poNumber || '',
+            preparedBy: sheet?.preparedBy || '',
+            totalAmount: Number(sheet?.totalPoAmount) || 0,
+            vendorName: sheet?.partyName || '',
             
-            const filteredByFirm = safePoMasterSheet.filter((sheet: POMasterRecord) => 
-                user?.firmNameMatch?.toLowerCase() === "all" || 
-                sheet?.firmNameMatch === user?.firmNameMatch
-            );
-            
-            const processedHistoryData: HistoryData[] = filteredByFirm.map((sheet: POMasterRecord) => ({
-                approvedBy: sheet?.approvedBy || '',
-                poCopy: sheet?.pdf || '',
-                poNumber: sheet?.poNumber || '',
-                preparedBy: sheet?.preparedBy || '',
-                totalAmount: Number(sheet?.totalPoAmount) || 0,
-                vendorName: sheet?.partyName || '',
-                
-                // Safe status calculation
-                status: (() => {
-                    try {
-                        const safeIndentSheet: IndentRecord[] = Array.isArray(indentSheet) ? indentSheet : [];
-                        const safeReceivedSheet: ReceivedRecord[] = Array.isArray(receivedSheet) ? receivedSheet : [];
+            // Safe status calculation
+            status: (() => {
+                try {
+                    const safeIndentSheet: IndentRecord[] = Array.isArray(indentSheet) ? indentSheet : [];
+                    const safeReceivedSheet: ReceivedRecord[] = Array.isArray(receivedSheet) ? receivedSheet : [];
+                    
+                    const poNumber = sheet?.poNumber;
+                    if (!poNumber) return 'Unknown';
+                    
+                    const isInIndentSheet = safeIndentSheet
+                        .some((s: IndentRecord) => s?.poNumber === poNumber);
                         
-                        const poNumber = sheet?.poNumber;
-                        if (!poNumber) return 'Unknown';
-                        
-                        const isInIndentSheet = safeIndentSheet
-                            .some((s: IndentRecord) => s?.poNumber === poNumber);
-                            
-                        const isInReceivedSheet = safeReceivedSheet
-                            .some((r: ReceivedRecord) => r?.poNumber === poNumber);
-                        
-                        if (isInIndentSheet) {
-                            return isInReceivedSheet ? 'Received' : 'Not Received';
-                        }
-                        return 'Revised';
-                    } catch (error) {
-                        console.warn('Error calculating status:', error);
-                        return 'Unknown';
+                    const isInReceivedSheet = safeReceivedSheet
+                        .some((r: ReceivedRecord) => r?.poNumber === poNumber);
+                    
+                    if (isInIndentSheet) {
+                        return isInReceivedSheet ? 'Received' : 'Not Received';
                     }
-                })()
-            }));
-            
-            setHistoryData(processedHistoryData);
-            
-        } catch (error) {
-            console.error('❌ Error in useEffect:', error);
-            setHistoryData([]);
-        }
-    }, [indentSheet, poMasterSheet, receivedSheet, user?.firmNameMatch]);
+                    return 'Revised';
+                } catch (error) {
+                    console.warn('Error calculating status:', error);
+                    return 'Unknown';
+                }
+            })()
+        }));
+        
+        setHistoryData(processedHistoryData);
+        
+    } catch (error) {
+        console.error('❌ Error in useEffect:', error);
+        setHistoryData([]);
+    }
+}, [indentSheet, poMasterSheet, receivedSheet, user?.firmNameMatch]);
+
 
     // Creating table columns
     const historyColumns: ColumnDef<HistoryData>[] = [
@@ -152,7 +167,7 @@ export default function POHistory() {
 
     return (
         <div>
-            <Heading heading="PO History " subtext="View purchase orders">
+            <Heading heading="PO History " subtext="View purchase orders ">
                 <Package2 size={50} className="text-primary" />
             </Heading>
 

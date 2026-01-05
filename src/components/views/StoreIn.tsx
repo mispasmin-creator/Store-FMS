@@ -418,7 +418,9 @@ export default () => {
     const schema = z.object({
         status: z.enum(['Received']),
         qty: z.coerce.number().min(1, 'Quantity is required'),
-        photoOfProduct: z.instanceof(File).optional(),
+        photoOfProduct: z.instanceof(File, {
+        message: "Photo of product is required"
+    }),
         damageOrder: z.enum(['Yes', 'No']),
         quantityAsPerBill: z.enum(['Yes', 'No']),
         remark: z.string().optional(),
@@ -639,6 +641,7 @@ export default () => {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Photo of Product</FormLabel>
+                                            <span className="text-destructive">*</span>
                                             <FormControl>
                                                 <Input
                                                     type="file"

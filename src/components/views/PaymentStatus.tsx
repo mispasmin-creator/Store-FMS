@@ -178,7 +178,7 @@ export default function PIApprovals() {
                     className="bg-purple-600 hover:bg-purple-700 shadow-sm"
                 >
                     <FileText className="mr-2 h-3 w-3" />
-                    Make Payment
+                    Against PI
                 </Button>
             ),
         },

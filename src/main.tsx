@@ -217,25 +217,45 @@ const routes: RouteAttributes[] = [
         notifications: () => 0,
     },
 
-    {
+   {
     path: 'po-history',
     gateKey: 'ordersView',
     name: 'PO History',
     icon: <Package2 size={20} />,
-    element: <Order />,
+    element: <Order /> , // Changed from <Order /> to <POHistory />
     notifications: (sheets: any[]) => {
-        // Get all unique PO numbers
-        const uniquePoNumbers = new Set(
-            sheets
-                .filter((sheet: any) => 
-                    sheet.poNumber && 
-                    sheet.poNumber.toString().trim() !== ''
-                )
-                .map((sheet: any) => sheet.poNumber.toString().trim())
-        );
+        if (!Array.isArray(sheets) || sheets.length === 0) {
+            return 0;
+        }
         
-        // Return count of unique PO numbers
-        return uniquePoNumbers.size;
+        try {
+            // Filter sheets with valid PO numbers
+            const sheetsWithPoNumbers = sheets.filter((sheet: any) => 
+                sheet?.poNumber && 
+                sheet?.poNumber.toString().trim() !== ''
+            );
+            
+            if (sheetsWithPoNumbers.length === 0) {
+                return 0;
+            }
+            
+            // Create a Map to store unique PO numbers
+            const uniquePOMap = new Map<string, any>();
+            
+            // Add only unique PO numbers to the Map
+            sheetsWithPoNumbers.forEach((sheet: any) => {
+                const poNumber = sheet?.poNumber.toString().trim();
+                if (poNumber && !uniquePOMap.has(poNumber)) {
+                    uniquePOMap.set(poNumber, sheet);
+                }
+            });
+            
+            // Return count of unique PO numbers
+            return uniquePOMap.size;
+        } catch (error) {
+            console.error('Error calculating PO notifications:', error);
+            return 0;
+        }
     },
 },
 

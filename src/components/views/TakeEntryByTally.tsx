@@ -1,6 +1,6 @@
 import { useSheets } from '@/context/SheetsContext';
 import type { ColumnDef, Row } from '@tanstack/react-table';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import DataTable from '../element/DataTable';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -22,11 +22,12 @@ import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Textarea } from '../ui/textarea';
 import { postToSheet } from '@/lib/fetchers';
-import { Calculator } from 'lucide-react';
+import { Calculator, Search } from 'lucide-react';
 import { Tabs, TabsContent } from '../ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import Heading from '../element/Heading';
 import { Pill } from '../ui/pill';
+import { Input } from '../ui/input';
 
 interface TallyEntryPendingData {
     indentNo: string;
@@ -126,6 +127,8 @@ export default function TallyEntry() {
     const [historyData, setHistoryData] = useState<TallyEntryHistoryData[]>([]);
     const [selectedItem, setSelectedItem] = useState<TallyEntryPendingData | null>(null);
     const [openDialog, setOpenDialog] = useState(false);
+    const [selectedPartyName, setSelectedPartyName] = useState<string>('all');
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         console.log('🔍 Raw tallyEntrySheet data:', tallyEntrySheet);
@@ -239,6 +242,62 @@ export default function TallyEntry() {
                 })
         );
     }, [tallyEntrySheet, user.firmNameMatch]);
+
+    // Get unique party names for filter
+    const partyNames = useMemo(() => {
+        const allParties = [...pendingData, ...historyData]
+            .map(item => item.partyName)
+            .filter(Boolean) as string[];
+        
+        return ['all', ...Array.from(new Set(allParties))];
+    }, [pendingData, historyData]);
+
+    // Filter data based on selected party and search term
+    const filteredPendingData = useMemo(() => {
+        let filtered = pendingData;
+        
+        // Apply party name filter
+        if (selectedPartyName !== 'all') {
+            filtered = filtered.filter(item => item.partyName === selectedPartyName);
+        }
+        
+        // Apply search filter
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(item => 
+                item.indentNo.toLowerCase().includes(term) ||
+                item.productName.toLowerCase().includes(term) ||
+                item.billNo.toLowerCase().includes(term) ||
+                (item.partyName && item.partyName.toLowerCase().includes(term)) ||
+                item.firmNameMatch.toLowerCase().includes(term)
+            );
+        }
+        
+        return filtered;
+    }, [pendingData, selectedPartyName, searchTerm]);
+
+    const filteredHistoryData = useMemo(() => {
+        let filtered = historyData;
+        
+        // Apply party name filter
+        if (selectedPartyName !== 'all') {
+            filtered = filtered.filter(item => item.partyName === selectedPartyName);
+        }
+        
+        // Apply search filter
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(item => 
+                item.indentNo.toLowerCase().includes(term) ||
+                item.productName.toLowerCase().includes(term) ||
+                item.billNo.toLowerCase().includes(term) ||
+                (item.partyName && item.partyName.toLowerCase().includes(term)) ||
+                item.firmNameMatch.toLowerCase().includes(term)
+            );
+        }
+        
+        return filtered;
+    }, [historyData, selectedPartyName, searchTerm]);
 
     const pendingColumns: ColumnDef<TallyEntryPendingData>[] = [
         ...(user.receiveItemView
@@ -552,16 +611,84 @@ export default function TallyEntry() {
             <Dialog open={openDialog} onOpenChange={setOpenDialog}>
                 <Tabs defaultValue="pending">
                     <Heading
-                        heading="Tally Entry"
+                        heading="Tally Entry "
                         subtext="Process tally entries and manage status"
                         tabs
                     >
                         <Calculator size={50} className="text-primary" />
                     </Heading>
 
+                    {/* Filter Controls Section */}
+                    <div className="mb-6 space-y-4">
+                        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                            <div className="w-full md:w-auto">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <Input
+                                        placeholder="Search by Indent No., Product, Bill No., Party Name..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-10 w-full md:w-[400px]"
+                                    />
+                                </div>
+                            </div>
+                            <div className="w-full md:w-auto">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium">Filter by Party:</span>
+                                    <Select
+                                        value={selectedPartyName}
+                                        onValueChange={setSelectedPartyName}
+                                    >
+                                        <SelectTrigger className="w-full md:w-[250px]">
+                                            <SelectValue placeholder="Select Party Name" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">All Parties</SelectItem>
+                                            {partyNames
+                                                .filter(name => name !== 'all')
+                                                .sort()
+                                                .map((party) => (
+                                                    <SelectItem key={party} value={party}>
+                                                        {party}
+                                                    </SelectItem>
+                                                ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {selectedPartyName !== 'all' && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setSelectedPartyName('all')}
+                                            className="text-sm"
+                                        >
+                                            Clear
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Filter Summary */}
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+                                Total Entries: {filteredPendingData.length + filteredHistoryData.length}
+                            </div>
+                            {selectedPartyName !== 'all' && (
+                                <div className="bg-green-50 text-green-700 px-3 py-1 rounded-full">
+                                    Party: {selectedPartyName}
+                                </div>
+                            )}
+                            {searchTerm && (
+                                <div className="bg-amber-50 text-amber-700 px-3 py-1 rounded-full">
+                                    Search: "{searchTerm}"
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     <TabsContent value="pending">
                         <DataTable
-                            data={pendingData}
+                            data={filteredPendingData}
                             columns={pendingColumns}
                             searchFields={['indentNo', 'productName', 'partyName', 'billNo', 'firmNameMatch']}
                             dataLoading={false}
@@ -569,7 +696,7 @@ export default function TallyEntry() {
                     </TabsContent>
                     <TabsContent value="history">
                         <DataTable
-                            data={historyData}
+                            data={filteredHistoryData}
                             columns={historyColumns}
                             searchFields={['indentNo', 'productName', 'partyName', 'billNo', 'status1', 'firmNameMatch']}
                             dataLoading={false}
