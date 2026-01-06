@@ -302,6 +302,60 @@ const routes: RouteAttributes[] = [
             (!sheet.actual || sheet.actual.toString().trim() === '')
         ).length,
 },
+{
+    path: 'Payment-Status',
+    name: 'HOD Approval',
+    icon: <RotateCcw size={20} />,
+    element: <PaymentStatus />,
+    gateKey: 'paymentStatus',
+    notifications: (sheetsData: any[]) => {
+        try {
+            // ✅ IMPORTANT: Expect [poMasterSheet, paymentsSheet, user] from Sidebar
+            const [poMasterSheet = [], paymentsSheet = []] = sheetsData;
+            
+            if (!Array.isArray(poMasterSheet) || poMasterSheet.length === 0) {
+                return 0;
+            }
+
+            // ✅ Get the current user's firm from context (you'll need to pass this)
+            // For now, we'll assume we need to count all firms or filter by user.firmNameMatch
+            // Since we can't access user here, we'll remove firm filtering
+            
+            // ✅ FILTER 1: Get PO numbers that already have payments
+            const paidPONumbers = new Set(
+                (paymentsSheet || []).map((payment: any) => payment.poNumber)
+            );
+
+            // ✅ FILTER 2: Only PENDING status and NOT already paid
+            const pendingItems = poMasterSheet.filter((record: any) => {
+                const poNumber = record?.poNumber || '';
+                const status = (record?.status || '').toString().trim().toLowerCase();
+                
+                // Check if NOT paid yet AND status is pending/empty
+                const notPaid = !paidPONumbers.has(poNumber);
+                const isPending = status === 'pending' || status === '' || status === undefined;
+                
+                return notPaid && isPending;
+            });
+
+            // ✅ FILTER 3: Remove duplicate PO numbers (same as your page logic)
+            const uniquePOMap = new Map();
+            pendingItems.forEach(item => {
+                const poNumber = item?.poNumber || '';
+                if (poNumber && !uniquePOMap.has(poNumber)) {
+                    uniquePOMap.set(poNumber, item);
+                }
+            });
+
+            return uniquePOMap.size;
+            
+        } catch (error) {
+            console.error('Error calculating Payment-Status notifications:', error);
+            return 0;
+        }
+    }
+},   
+
 
   // Then update the notification function:
 {
@@ -520,6 +574,7 @@ const routes: RouteAttributes[] = [
         return count;
     },
 },
+
 
     {
     path: 'take-entry-by-tally',

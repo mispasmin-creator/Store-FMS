@@ -409,8 +409,10 @@ export default function GetPurchase() {
         discountAmount: z.coerce.number().optional(),
         paymentType: z.string().optional(),
         advanceAmount: z.coerce.number().optional(),
-        photoOfBill: z.instanceof(File, { message: 'Photo/Bill document is required' })
+        photoOfBill: z.instanceof(File).optional()
         .refine((file) => {
+            // Allow both images and PDFs
+            if (!file) return true; // Optional field
             const allowedTypes = [
                 'image/jpeg', 
                 'image/jpg', 
