@@ -467,33 +467,33 @@ const routes: RouteAttributes[] = [
         ).length,
 },
 
-// {
-//     path: 'rectify-the-mistake',
-//     gateKey: 'rectifyTheMistake',
-//     name: 'Rectify the mistake',
-//     icon: <Users size={20} />,
-//     element: <RectifyTheMistake />,
-//     notifications: (sheets: any[]) => {
-//         if (!sheets || !Array.isArray(sheets) || sheets.length === 0) return 0;
+{
+    path: 'rectify-the-mistake',
+    gateKey: 'rectifyTheMistake',
+    name: 'Rectify the mistake',
+    icon: <Users size={20} />,
+    element: <RectifyTheMistake />,
+    notifications: (sheets: any[]) => {
+        if (!sheets || !Array.isArray(sheets) || sheets.length === 0) return 0;
         
-//         const sheetData = Array.isArray(sheets[0]) ? sheets[0] : sheets;
+        const sheetData = Array.isArray(sheets[0]) ? sheets[0] : sheets;
         
-//         let count = 0;
-//         sheetData.forEach((item: any) => {
-//             const planned2 = item['Planned 2'] || item['planned2'];
-//             const actual2 = item['Actual 2'] || item['actual2'];
+        let count = 0;
+        sheetData.forEach((item: any) => {
+            const planned2 = item['Planned 2'] || item['planned2'];
+            const actual2 = item['Actual 2'] || item['actual2'];
             
-//             const hasPlanned2 = planned2 && planned2.toString().trim() !== '';
-//             const noActual2 = !actual2 || actual2.toString().trim() === '';
+            const hasPlanned2 = planned2 && planned2.toString().trim() !== '';
+            const noActual2 = !actual2 || actual2.toString().trim() === '';
             
-//             if (hasPlanned2 && noActual2) {
-//                 count++;
-//             }
-//         });
+            if (hasPlanned2 && noActual2) {
+                count++;
+            }
+        });
         
-//         return count;
-//     },
-// },
+        return count;
+    },
+},
 
 // {
 //     path: 'reaudit-data',
