@@ -895,7 +895,7 @@ export default function PcReportTable() {
 
         <Tabs defaultValue="all" className="w-full">
           {/* Tabs Navigation */}
-          <TabsList className="grid grid-cols-2 md:grid-cols-6 mb-6">
+          <TabsList className="grid grid-cols-2 md:grid-cols-7 mb-6">
             <TabsTrigger value="all" onClick={() => setActiveTab('ALL')}>
               All Pending
             </TabsTrigger>
