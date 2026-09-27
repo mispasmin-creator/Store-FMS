@@ -13,7 +13,7 @@
  * 5. Department Indent / Approve Indent
  * 6. Vendor Rate Update
  * 7. Department Approval (Three Party Approval)
- * 8. Management Approval (Exact 563 Target: 560 Done, 3 Pending)
+ * 8. Management Approval (LIVE: React Pending tab + History tab)
  * 9. Pending PO
  * 10. Create PO
  * 11. PO History (794 records)
@@ -49,13 +49,20 @@ var TIMEZONE = "Asia/Kolkata";
 var DEFAULT_FIRM_NAME = "PMPL"; // Firm Name ko hamesha 'PMPL' standardize rakhne ke liye
 var NORMALIZE_FIRM_TO_PMPL = true; // Set true so PMMPL/Purab typos automatically display as PMPL
 
-// Audit Data (TALLY ENTRY) React screen PO Number wise ek row dikhata hai
-// (Product Summary + Total Qty). Isliye MIS me bhi PO Number wise group kiya jata hai.
-// Agar React screen har item ki alag row dikhaye to isse false kar dein.
+// Audit Data (tally_entry) React screen PO Number + Stage wise ek row dikhata hai
+// (Product Summary + Total Qty). Isliye MIS me bhi usi tarah group kiya jata hai.
 var AUDIT_GROUP_BY_PO = true;
 
 // React Audit Data screen ke stages (isi order me check hote hain)
 var AUDIT_STAGE_ORDER = ["AUDIT", "RECTIFY", "REAUDIT", "TALLY_ENTRY", "AGAIN_AUDIT"];
+
+// Live React app (Store FMS) ka data Supabase me hai. Management Approval aur
+// Audit Data isi live database se direct padhe jaate hain, taaki count React screen
+// se exact match kare.
+// KEY: Menu "Store FMS MIS" -> "⚙️ Setup Supabase Credentials (Permanent)" me ek baar
+// React app wali Supabase anon/publishable key daal dein (Script Properties me save hoti hai).
+var LIVE_SUPABASE_URL = "https://uayzjufjncmvszutiboc.supabase.co";
+var LIVE_SUPABASE_KEY = ""; // Code me key na rakhein; Script Properties se aati hai
 
 // React frontend ka exact live data source
 var MAIN_STORE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbywmf5QjIMOPMjuxbvl6ojM59YbEOSUyvzg4RZ4whUN1Tr6VaPHqg1o3kEtGQZwT27S1g/exec";
@@ -171,9 +178,10 @@ var FMS_STEPS = [
     plannedKey: ["planned1", "planned_1"],
     actualKey: ["actual1", "actual_1"],
     idKey: ["indentNumber", "indent_number"],
-    firmKey: ["firmName", "firm"],
-    exactTarget563: true,
-    filterFn: function(r) { return hasVal(r.planned1 || r.planned_1); }
+    firmKey: ["firm_name_match", "firmNameMatch", "firm_name", "firmName", "firm"],
+    liveTable: "indent",      // Live Supabase 'indent' table (React Management Approval screen)
+    liveMgmtApproval: true,   // Pending tab + History tab, bilkul React jaisa
+    filterFn: function(r) { return true; }
   },
   {
     id: 9,
@@ -323,8 +331,9 @@ var FMS_STEPS = [
     sourceSheet: "TALLY ENTRY",
     plannedKey: ["planned1", "Planned 1", "materialInDate", "timestamp"],
     actualKey: ["actual1", "Actual 1"],
-    idKey: ["poNumber", "PO Number", "indentNumber", "indentNo", "billNo", "liftNumber"],
-    firmKey: ["firmNameMatch", "firmName", "firm"],
+    idKey: ["po_number", "poNumber", "PO Number", "indent_number", "indentNumber", "bill_no", "billNo", "lift_number", "liftNumber"],
+    firmKey: ["firm_name_match", "firmNameMatch", "firm_name", "firmName", "firm"],
+    liveTable: "tally_entry", // Live Supabase tally_entry table (React Audit Data screen)
     auditStage: "ALL",
     filterFn: function(r) { return true; }
   },
@@ -336,8 +345,9 @@ var FMS_STEPS = [
     sourceSheet: "TALLY ENTRY",
     plannedKey: ["planned2", "Planned 2", "planned1", "timestamp"],
     actualKey: ["actual2", "Actual 2"],
-    idKey: ["poNumber", "PO Number", "indentNumber", "indentNo", "billNo", "liftNumber"],
-    firmKey: ["firmNameMatch", "firmName", "firm"],
+    idKey: ["po_number", "poNumber", "PO Number", "indent_number", "indentNumber", "bill_no", "billNo", "lift_number", "liftNumber"],
+    firmKey: ["firm_name_match", "firmNameMatch", "firm_name", "firmName", "firm"],
+    liveTable: "tally_entry", // Live Supabase tally_entry table (React Audit Data screen)
     auditStage: "RECTIFY",
     filterFn: function(r) { return true; }
   },
@@ -349,8 +359,9 @@ var FMS_STEPS = [
     sourceSheet: "TALLY ENTRY",
     plannedKey: ["planned3", "Planned 3", "planned1", "timestamp"],
     actualKey: ["actual3", "Actual 3"],
-    idKey: ["poNumber", "PO Number", "indentNumber", "indentNo", "billNo", "liftNumber"],
-    firmKey: ["firmNameMatch", "firmName", "firm"],
+    idKey: ["po_number", "poNumber", "PO Number", "indent_number", "indentNumber", "bill_no", "billNo", "lift_number", "liftNumber"],
+    firmKey: ["firm_name_match", "firmNameMatch", "firm_name", "firmName", "firm"],
+    liveTable: "tally_entry", // Live Supabase tally_entry table (React Audit Data screen)
     auditStage: "REAUDIT",
     filterFn: function(r) { return true; }
   },
@@ -362,8 +373,9 @@ var FMS_STEPS = [
     sourceSheet: "TALLY ENTRY",
     plannedKey: ["planned4", "Planned 4", "planned1", "timestamp"],
     actualKey: ["actual4", "Actual 4"],
-    idKey: ["poNumber", "PO Number", "indentNumber", "indentNo", "billNo", "liftNumber"],
-    firmKey: ["firmNameMatch", "firmName", "firm"],
+    idKey: ["po_number", "poNumber", "PO Number", "indent_number", "indentNumber", "bill_no", "billNo", "lift_number", "liftNumber"],
+    firmKey: ["firm_name_match", "firmNameMatch", "firm_name", "firmName", "firm"],
+    liveTable: "tally_entry", // Live Supabase tally_entry table (React Audit Data screen)
     auditStage: "TALLY_ENTRY",
     filterFn: function(r) { return true; }
   },
@@ -375,8 +387,9 @@ var FMS_STEPS = [
     sourceSheet: "TALLY ENTRY",
     plannedKey: ["planned5", "Planned 5"],
     actualKey: ["actual5", "Actual 5"],
-    idKey: ["poNumber", "PO Number", "indentNumber", "indentNo", "billNo", "liftNumber"],
-    firmKey: ["firmNameMatch", "firmName", "firm"],
+    idKey: ["po_number", "poNumber", "PO Number", "indent_number", "indentNumber", "bill_no", "billNo", "lift_number", "liftNumber"],
+    firmKey: ["firm_name_match", "firmNameMatch", "firm_name", "firmName", "firm"],
+    liveTable: "tally_entry", // Live Supabase tally_entry table (React Audit Data screen)
     auditStage: "AGAIN_AUDIT",
     filterFn: function(r) { return true; }
   },
@@ -415,7 +428,7 @@ function onOpen() {
       .addItem("Sync Store Check Only (507 Match: 1 Pending, 506 Done)", "importStoreInMIS")
       .addItem("Sync Department Approval Only (580 Match: 0 Pending, 580 Done)", "importThreePartyApprovalMIS")
       .addItem("Sync Lifting Only (525 Match: 19 Pending, 506 Done)", "importLiftingMIS")
-      .addItem("Sync Management Approval Only (563 Match)", "importMISFromSupabase")
+      .addItem("Sync Management Approval Only (Live React Match: Pending + History)", "importMISFromSupabase")
       .addSeparator()
       .addItem("⚙️ Setup Supabase Credentials (Permanent)", "promptSupabaseCredentials")
       .addItem("🔍 Test Supabase Connection", "testSupabaseConnection")
@@ -498,7 +511,8 @@ function syncAllStepsMIS() {
 // =========================================================================
 
 function processSingleStep(ss, step, cachedSheets) {
-  var rawData = getRawDataForStep(ss, step, cachedSheets);
+  // Management Approval & Audit Data: live React database (Supabase) se direct data
+  var rawData = step.liveTable ? fetchLiveSupabaseTable(step.liveTable) : getRawDataForStep(ss, step, cachedSheets);
   if (!rawData || rawData.length === 0) {
     Logger.log("No data found for step: " + step.name);
     return {
@@ -517,7 +531,7 @@ function processSingleStep(ss, step, cachedSheets) {
   var totalDelaySeconds = 0;
 
   // Audit Data steps (20-24) apna alag React-exact logic use karte hain (niche dekhein)
-  var loopData = step.auditStage ? [] : rawData;
+  var loopData = (step.auditStage || step.liveMgmtApproval) ? [] : rawData;
 
   for (var i = 0; i < loopData.length; i++) {
     var item = loopData[i];
@@ -628,7 +642,14 @@ function processSingleStep(ss, step, cachedSheets) {
 
   // Exact target slicing
   var finalRows = [];
-  if (step.auditStage) {
+  if (step.liveMgmtApproval) {
+    // Step 8: Management Approval — React screen ka exact Pending tab + History tab (live)
+    var mgmtRes = buildMgmtApprovalRows(rawData, step);
+    pendingRows = mgmtRes.pending;
+    completedRows = mgmtRes.completed;
+    totalDelaySeconds = mgmtRes.totalDelaySeconds;
+    finalRows = pendingRows.concat(completedRows);
+  } else if (step.auditStage) {
     // Steps 20-24: Audit Data (TALLY ENTRY) — React Audit Data screen ka exact stage logic.
     // Koi hardcoded row / fixed count nahi: jitna React me Pending & Completed dikhe, utna hi yahan.
     var auditRes = buildAuditStageRows(rawData, step);
@@ -906,7 +927,7 @@ function processSingleStep(ss, step, cachedSheets) {
 
   // Safety check: Never clear or wipe sheet if finalRows is empty, UNLESS step is legitimately 0 matching React!
   if (!finalRows || finalRows.length === 0) {
-    if (step.exactTarget0 || step.auditStage || step.id === 18 || step.id === 19) {
+    if (step.exactTarget0 || step.auditStage || step.liveMgmtApproval || step.id === 18 || step.id === 19) {
       // Clean up fake dummy rows so MIS sheet matches React 0 records!
       // (Audit stages me bhi 0 records legit hain, jaise Reaudit tab me 0 dikhe)
       var targetSheet = ss.getSheetByName(step.sheetName);
@@ -976,17 +997,67 @@ function processSingleStep(ss, step, cachedSheets) {
 }
 
 // =========================================================================
-// 5A. AUDIT DATA (TALLY ENTRY) — EXACT REACT AUDIT DATA SCREEN LOGIC
+// 5A. LIVE REACT DATABASE (SUPABASE) READER — Management Approval & Audit Data
 // =========================================================================
-// React (AuditData.tsx) har TALLY ENTRY row ka stage aise decide karta hai:
-//   Planned 1 hai & Actual 1 khali  -> AUDIT        (pending)
-//   Planned 2 hai & Actual 2 khali  -> RECTIFY      (pending)
-//   Planned 3 hai & Actual 3 khali  -> REAUDIT      (pending)
-//   Planned 4 hai & Actual 4 khali  -> TALLY_ENTRY  (pending)
-//   Planned 5 hai & Actual 5 khali  -> AGAIN_AUDIT  (pending)
-//   Actual 1..5 sab bhare hain      -> COMPLETED
-//   Baaki sab rows React screen par dikhti hi nahi (skip)
-// "All Pending" = sab pending stages, "Completed" = COMPLETED.
+
+var LIVE_TABLE_CACHE = {};
+
+/**
+ * Live Supabase table ke saare rows (1000-1000 ke pages me) padhta hai.
+ * Sirf READ hota hai, database me kuch bhi change nahi hota.
+ */
+function fetchLiveSupabaseTable(tableName) {
+  if (LIVE_TABLE_CACHE[tableName]) return LIVE_TABLE_CACHE[tableName];
+
+  var liveKey = LIVE_SUPABASE_KEY || PropertiesService.getScriptProperties().getProperty("SUPABASE_API_KEY") || "";
+  if (!liveKey) {
+    Logger.log("Live Supabase key set nahi hai. Menu se 'Setup Supabase Credentials' me key daalein.");
+    return [];
+  }
+
+  var all = [];
+  var pageSize = 1000;
+  for (var offset = 0; offset < 100000; offset += pageSize) {
+    var url = LIVE_SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/" + encodeURIComponent(tableName) +
+              "?select=*&order=id.asc&offset=" + offset + "&limit=" + pageSize;
+    var res;
+    try {
+      res = UrlFetchApp.fetch(url, {
+        method: "get",
+        headers: {
+          "apikey": liveKey,
+          "Authorization": "Bearer " + liveKey
+        },
+        muteHttpExceptions: true
+      });
+    } catch (e) {
+      Logger.log("Live Supabase fetch failed for " + tableName + ": " + e.message);
+      return [];
+    }
+    if (res.getResponseCode() < 200 || res.getResponseCode() >= 300) {
+      Logger.log("Live Supabase error for " + tableName + " (" + res.getResponseCode() + "): " + res.getContentText().substring(0, 300));
+      return [];
+    }
+    var page = JSON.parse(res.getContentText());
+    if (!Array.isArray(page) || page.length === 0) break;
+    all = all.concat(page);
+    if (page.length < pageSize) break;
+  }
+
+  Logger.log("Live Supabase table '" + tableName + "': " + all.length + " rows");
+  LIVE_TABLE_CACHE[tableName] = all;
+  return all;
+}
+
+// Supabase "timestamp without time zone" values IST me hote hain (React bhi aise hi dikhata hai)
+function liveDate(v) {
+  if (v === undefined || v === null || v === "") return "";
+  var s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(s)) {
+    return s.replace(" ", "T") + "+05:30";
+  }
+  return v;
+}
 
 // React ka getFieldValue: pehli key jiski value undefined/null/"" na ho
 function reactFieldValue(item, keys) {
@@ -998,51 +1069,12 @@ function reactFieldValue(item, keys) {
   return "";
 }
 
-// React ka hasValue: sirf blank/whitespace ko khali maanta hai ("-" bhi value hai)
+// React ka hasValue: sirf blank/whitespace ko khali maanta hai
 function reactHasValue(v) {
   return v !== undefined && v !== null && v !== "" && String(v).trim() !== "";
 }
 
-function getAuditStageInfo(item) {
-  var planned = [];
-  var actual = [];
-  for (var n = 1; n <= 5; n++) {
-    planned.push(reactFieldValue(item, ["Planned " + n, "planned" + n]));
-    actual.push(reactFieldValue(item, ["Actual " + n, "actual" + n]));
-  }
-
-  for (var s = 0; s < AUDIT_STAGE_ORDER.length; s++) {
-    if (reactHasValue(planned[s]) && !reactHasValue(actual[s])) {
-      return {
-        stage: AUDIT_STAGE_ORDER[s],
-        stageIndex: s,
-        isCompleted: false,
-        planned: planned[s],
-        actual: "",
-        plannedArr: planned,
-        actualArr: actual
-      };
-    }
-  }
-
-  var allDone = true;
-  for (var d = 0; d < 5; d++) {
-    if (!reactHasValue(actual[d])) { allDone = false; break; }
-  }
-  if (!allDone) return null; // React is row ko screen par nahi dikhata
-
-  return {
-    stage: "COMPLETED",
-    stageIndex: AUDIT_STAGE_ORDER.length,
-    isCompleted: true,
-    planned: planned[4] || planned[3] || planned[2] || planned[1] || planned[0],
-    actual: actual[4] || actual[3] || actual[2] || actual[1] || actual[0],
-    plannedArr: planned,
-    actualArr: actual
-  };
-}
-
-function getAuditFirmName(item, step) {
+function getLiveFirmName(item, step) {
   var firm = getVal(item, step.firmKey);
   if (!firm || firm === "" || firm === "-") return DEFAULT_FIRM_NAME;
   if (NORMALIZE_FIRM_TO_PMPL && /^(pmmpl|purab|pmpl|purab metallics)$/i.test(String(firm).trim())) {
@@ -1070,7 +1102,7 @@ function pickLatestDate(values) {
   return best;
 }
 
-function buildAuditMisRow(timestampRaw, idVal, firm, plannedRaw, actualRaw, isPending) {
+function buildLiveMisRow(timestampRaw, idVal, firm, plannedRaw, actualRaw, isPending) {
   var fPlanned = formatDateTimeKolkata(plannedRaw);
   var fTimestamp = formatDateTimeKolkata(timestampRaw) || fPlanned;
   if (!fPlanned) fPlanned = fTimestamp;
@@ -1085,8 +1117,110 @@ function buildAuditMisRow(timestampRaw, idVal, firm, plannedRaw, actualRaw, isPe
   };
 }
 
+// =========================================================================
+// 5B. MANAGEMENT APPROVAL — EXACT REACT SCREEN LOGIC (RateApproval.tsx)
+// =========================================================================
+// Pending tab : planned4 bhara, approved_vendor_name NULL, vendor_type 'Three Party'/'Regular',
+//               aur vendor1_rank / vendor2_rank / vendor3_rank me se koi bhara
+// History tab : planned4 bhara, approved_vendor_name bhara, vendor_type 'Three Party'/'Regular'
+// Planned = planned4, Actual = actual4 (approval time)
+
+function buildMgmtApprovalRows(rawData, step) {
+  var rows = rawData.slice();
+  // React: indent_number descending
+  rows.sort(function(a, b) {
+    var x = String(reactFieldValue(a, ["indent_number", "indentNumber"]));
+    var y = String(reactFieldValue(b, ["indent_number", "indentNumber"]));
+    return x < y ? 1 : (x > y ? -1 : 0);
+  });
+
+  var pending = [];
+  var completed = [];
+  var totalDelaySeconds = 0;
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var planned4 = r.planned4 !== undefined ? r.planned4 : r.planned_4;
+    if (planned4 === undefined || planned4 === null) continue;
+
+    var vType = r.vendor_type !== undefined ? r.vendor_type : r.vendorType;
+    if (vType !== "Three Party" && vType !== "Regular") continue;
+
+    var approved = r.approved_vendor_name !== undefined ? r.approved_vendor_name : r.approvedVendorName;
+    var idVal = reactFieldValue(r, ["indent_number", "indentNumber"]) || "-";
+    var firm = getLiveFirmName(r, step);
+    var ts = liveDate(r.timestamp);
+    var planned = liveDate(planned4);
+
+    if (approved === undefined || approved === null) {
+      if (!(r.vendor1_rank || r.vendor2_rank || r.vendor3_rank)) continue;
+      pending.push(buildLiveMisRow(ts, idVal, firm, planned, "", true).row);
+    } else if (approved) {
+      var built = buildLiveMisRow(ts, idVal, firm, planned, liveDate(r.actual4), false);
+      totalDelaySeconds += built.delaySeconds;
+      completed.push(built.row);
+    }
+  }
+
+  Logger.log("Management Approval -> Pending: " + pending.length + ", History: " + completed.length);
+  return { pending: pending, completed: completed, totalDelaySeconds: totalDelaySeconds };
+}
+
+// =========================================================================
+// 5C. AUDIT DATA (tally_entry) — EXACT REACT AUDIT DATA SCREEN LOGIC
+// =========================================================================
+// React (AuditData.tsx) har row ka stage aise decide karta hai:
+//   Planned 1 hai & Actual 1 khali                      -> AUDIT
+//   Status 1 'Done' nahi & Planned 2 hai & Actual 2 khali -> RECTIFY
+//   Status 1 'Done' nahi & Planned 3 hai & Actual 3 khali -> REAUDIT
+//   Planned 4 hai & Actual 4 khali                      -> TALLY_ENTRY
+//   Actual 4 ya Actual 5 bhara                          -> COMPLETED
+//   Baaki rows React screen par dikhti hi nahi (skip)
+// Phir PO Number + Stage wise group hota hai (ek PO = ek row).
+
+function getAuditStageInfo(item) {
+  var planned = [];
+  var actual = [];
+  for (var n = 1; n <= 5; n++) {
+    planned.push(reactFieldValue(item, ["planned" + n, "Planned " + n]));
+    actual.push(reactFieldValue(item, ["actual" + n, "Actual " + n]));
+  }
+  var isAuditDone = String(reactFieldValue(item, ["status1", "Status 1"]) || "").toLowerCase() === "done";
+
+  var stageIndex = -1;
+  if (reactHasValue(planned[0]) && !reactHasValue(actual[0])) stageIndex = 0;
+  else if (!isAuditDone && reactHasValue(planned[1]) && !reactHasValue(actual[1])) stageIndex = 1;
+  else if (!isAuditDone && reactHasValue(planned[2]) && !reactHasValue(actual[2])) stageIndex = 2;
+  else if (reactHasValue(planned[3]) && !reactHasValue(actual[3])) stageIndex = 3;
+
+  if (stageIndex !== -1) {
+    return {
+      stage: AUDIT_STAGE_ORDER[stageIndex],
+      stageIndex: stageIndex,
+      isCompleted: false,
+      planned: planned[stageIndex],
+      actual: "",
+      plannedArr: planned,
+      actualArr: actual
+    };
+  }
+
+  if (reactHasValue(actual[3]) || reactHasValue(actual[4])) {
+    return {
+      stage: "COMPLETED",
+      stageIndex: AUDIT_STAGE_ORDER.length,
+      isCompleted: true,
+      planned: planned[3] || planned[2] || planned[1] || planned[0],
+      actual: actual[3] || actual[4],
+      plannedArr: planned,
+      actualArr: actual
+    };
+  }
+  return null; // React is row ko screen par nahi dikhata
+}
+
 function buildAuditStageRows(rawData, step) {
-  // 1. Har row ka React stage nikalo, aur PO Number wise group karo
+  // 1. Har row ka React stage nikalo, phir PO Number + Stage wise group karo (React jaisa)
   var groups = [];
   var groupMap = {};
   for (var i = 0; i < rawData.length; i++) {
@@ -1094,17 +1228,21 @@ function buildAuditStageRows(rawData, step) {
     var info = getAuditStageInfo(item);
     if (!info) continue;
 
-    var idVal = String(getVal(item, step.idKey) || "").trim();
-    var key = AUDIT_GROUP_BY_PO && idVal ? idVal.toUpperCase() : ("ROW-" + i);
+    var poVal = String(reactFieldValue(item, ["po_number", "poNumber", "PO Number"]) || "").trim();
+    var key = AUDIT_GROUP_BY_PO
+      ? (poVal || "NO-PO") + "-" + info.stage + "-" + info.isCompleted
+      : ("ROW-" + i);
 
     var g = groupMap[key];
     if (!g) {
       g = {
-        id: idVal || "-",
-        firm: getAuditFirmName(item, step),
-        timestamp: reactFieldValue(item, ["Timestamp", "timestamp"]) ||
-                   getVal(item, ["materialInDate", "Material In Date", "created_at", "createdAt"]) ||
-                   info.planned,
+        id: poVal || String(getVal(item, step.idKey) || "NO-PO"),
+        firm: getLiveFirmName(item, step),
+        timestamp: liveDate(reactFieldValue(item, ["timestamp", "Timestamp"]) ||
+                   getVal(item, ["material_in_date", "materialInDate", "created_at"]) ||
+                   info.planned),
+        stageIndex: info.stageIndex,
+        isCompleted: info.isCompleted,
         entries: []
       };
       groupMap[key] = g;
@@ -1117,48 +1255,37 @@ function buildAuditStageRows(rawData, step) {
   var pending = [];
   var completed = [];
   var totalDelaySeconds = 0;
+  var built;
 
   for (var gi = 0; gi < groups.length; gi++) {
     var grp = groups[gi];
+    var first = grp.entries[0];
 
-    // Group ka current stage = sabse pehla pending stage (React "Current Stage")
-    var pendingEntry = null;
-    for (var e = 0; e < grp.entries.length; e++) {
-      var en = grp.entries[e];
-      if (!en.isCompleted && (!pendingEntry || en.stageIndex < pendingEntry.stageIndex)) {
-        pendingEntry = en;
-      }
-    }
-
-    var built;
     if (targetIdx === -1) {
-      // "MIS - Audit Data": All Pending tab + Completed tab
-      if (pendingEntry) {
-        built = buildAuditMisRow(grp.timestamp, grp.id, grp.firm, pendingEntry.planned, "", true);
+      // "MIS - Audit Data": React "All Pending" tab + "Completed" tab
+      if (!grp.isCompleted) {
+        built = buildLiveMisRow(grp.timestamp, grp.id, grp.firm, liveDate(first.planned), "", true);
         pending.push(built.row);
       } else {
-        var plannedAll = [];
         var actualAll = [];
-        for (var c = 0; c < grp.entries.length; c++) {
-          plannedAll.push(grp.entries[c].planned);
-          actualAll.push(grp.entries[c].actual);
-        }
-        built = buildAuditMisRow(grp.timestamp, grp.id, grp.firm, pickLatestDate(plannedAll), pickLatestDate(actualAll), false);
+        for (var c = 0; c < grp.entries.length; c++) actualAll.push(liveDate(grp.entries[c].actual));
+        built = buildLiveMisRow(grp.timestamp, grp.id, grp.firm, liveDate(first.planned), pickLatestDate(actualAll), false);
         totalDelaySeconds += built.delaySeconds;
         completed.push(built.row);
       }
       continue;
     }
 
-    // Stage-wise sheet (Rectify / Reaudit / Tally Entry / Again Auditing)
-    if (pendingEntry && pendingEntry.stageIndex === targetIdx) {
-      // React ke is stage wale tab me pending
-      built = buildAuditMisRow(grp.timestamp, grp.id, grp.firm, pendingEntry.planned, "", true);
-      pending.push(built.row);
+    // Stage-wise sheet: React ke us tab ka Pending
+    if (!grp.isCompleted) {
+      if (grp.stageIndex === targetIdx) {
+        built = buildLiveMisRow(grp.timestamp, grp.id, grp.firm, liveDate(first.planned), "", true);
+        pending.push(built.row);
+      }
       continue;
     }
 
-    // Is stage ka kaam ho chuka hai (sab items me Planned N & Actual N dono bhare)
+    // Completed groups jinka ye stage (Planned N & Actual N) poora hua hai
     var stageDone = true;
     var stagePlanned = [];
     var stageActual = [];
@@ -1166,19 +1293,17 @@ function buildAuditStageRows(rawData, step) {
       var pv = grp.entries[s].plannedArr[targetIdx];
       var av = grp.entries[s].actualArr[targetIdx];
       if (!reactHasValue(pv) || !reactHasValue(av)) { stageDone = false; break; }
-      stagePlanned.push(pv);
-      stageActual.push(av);
+      stagePlanned.push(liveDate(pv));
+      stageActual.push(liveDate(av));
     }
     if (stageDone && stagePlanned.length > 0) {
-      built = buildAuditMisRow(grp.timestamp, grp.id, grp.firm, pickLatestDate(stagePlanned), pickLatestDate(stageActual), false);
+      built = buildLiveMisRow(grp.timestamp, grp.id, grp.firm, stagePlanned[0], pickLatestDate(stageActual), false);
       totalDelaySeconds += built.delaySeconds;
       completed.push(built.row);
     }
   }
 
-  Logger.log("Audit (" + step.auditStage + ") -> Pending: " + pending.length + ", Completed: " + completed.length +
-             (AUDIT_GROUP_BY_PO ? " (PO Number wise)" : " (row wise)"));
-
+  Logger.log("Audit (" + step.auditStage + ") -> Pending: " + pending.length + ", Completed: " + completed.length);
   return { pending: pending, completed: completed, totalDelaySeconds: totalDelaySeconds };
 }
 
@@ -1320,9 +1445,7 @@ function importMakePaymentMIS() {
 function importAuditStageMIS(stepIndex, title) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var step = FMS_STEPS[stepIndex];
-  var cached = {};
-  var rawTally = fetchFromWebAPI("TALLY ENTRY");
-  if (rawTally && rawTally.length > 0) cached["TALLY ENTRY"] = rawTally;
+  var cached = {}; // Data live Supabase 'tally_entry' table se aata hai
 
   var res = processSingleStep(ss, step, cached);
   Logger.log("=========================================");
@@ -1456,28 +1579,28 @@ function importLiftingMIS() {
 }
 
 /**
- * Ye function Management Approval ka exact 563 data sync karta hai
- * (3 Pending + 560 Completed) matching React screen!
+ * Ye function Management Approval ka live data sync karta hai
+ * (React Management Approval screen: Pending tab + History tab, exact match)
  */
 function importMISFromSupabase() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var step8 = FMS_STEPS[7]; // Management Approval
-  var cached = {};
-  var raw = fetchFromWebAPI("INDENT");
-  if (raw && raw.length > 0) cached["INDENT"] = raw;
+  var cached = {}; // Data live Supabase 'indent' table se aata hai
 
   var res = processSingleStep(ss, step8, cached);
   Logger.log("=========================================");
-  Logger.log("MANAGEMENT APPROVAL MIS IMPORT COMPLETE:");
-  Logger.log("Total Planned Records in Sheet: " + res.total + " (Target: 563)");
-  Logger.log("Completed: " + res.completed + " (Target: 560)");
-  Logger.log("Pending: " + res.pending + " (Target: 3)");
+  Logger.log("MANAGEMENT APPROVAL MIS IMPORT COMPLETE (LIVE, MATCHING REACT SCREEN):");
+  Logger.log("Total Records in Sheet: " + res.total);
+  Logger.log("History (Completed): " + res.completed);
+  Logger.log("Pending: " + res.pending);
   Logger.log("=========================================");
-  SpreadsheetApp.getUi().alert(
-    "Management Approval MIS Synced Successfully",
-    "Total: " + res.total + " records (Pending: " + res.pending + ", Completed: " + res.completed + ")",
-    SpreadsheetApp.getUi().ButtonSet.OK
-  );
+  try {
+    SpreadsheetApp.getUi().alert(
+      "Management Approval MIS Synced Successfully",
+      "Total: " + res.total + " records (Pending: " + res.pending + ", History: " + res.completed + ") matching React Management Approval screen!",
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  } catch (e) {}
 }
 
 // =========================================================================
