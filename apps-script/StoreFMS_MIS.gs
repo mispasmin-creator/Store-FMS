@@ -10,14 +10,14 @@
  * 2. Issue Data (13 records)
  * 3. Inventory (162 records)
  * 4. Create Indent (976 records)
- * 5. Department Indent / Approve Indent
- * 6. Vendor Rate Update
- * 7. Department Approval (Three Party Approval)
+ * 5. Department Indent Approval (LIVE: React Pending + History)
+ * 6. Vendor Rate Update (LIVE: React Pending + History)
+ * 7. Department Approval (LIVE: React Pending + History)
  * 8. Management Approval (LIVE: React Pending tab + History tab)
  * 9. Pending PO
  * 10. Create PO
  * 11. PO History (794 records)
- * 12. Lifting / Get Purchase (Exact 514 Target: 492 Done, 22 Pending, PO Number)
+ * 12. Lifting / Get Purchase (LIVE: React Pending PO + Lift History)
  * 13. Store Check (Store In - 791 records)
  * 14. HOD Check
  * 15. Freight Payment (Full Kitting - 987 records)
@@ -142,8 +142,10 @@ var FMS_STEPS = [
     plannedKey: ["planned1", "planned_1"],
     actualKey: ["actual1", "actual_1"],
     idKey: ["indentNumber", "indent_number"],
-    firmKey: ["firmName", "firm"],
-    filterFn: function(r) { return hasVal(r.planned1 || r.planned_1); }
+    firmKey: ["firm_name", "firm_name_match", "firmNameMatch", "firmName", "firm"],
+    liveTable: "indent",            // Live React "Department Indent Approval" screen
+    liveBuilder: "approveIndent",
+    filterFn: function(r) { return true; }
   },
   {
     id: 6,
@@ -153,8 +155,10 @@ var FMS_STEPS = [
     plannedKey: ["planned2", "planned_2"],
     actualKey: ["actual2", "actual_2"],
     idKey: ["indentNumber", "indent_number"],
-    firmKey: ["firmName", "firm"],
-    filterFn: function(r) { return hasVal(r.planned2 || r.planned_2); }
+    firmKey: ["firm_name_match", "firm_name", "firmNameMatch", "firmName", "firm"],
+    liveTable: "indent",            // Live React "Vendor Rate Update" screen
+    liveBuilder: "vendorRate",
+    filterFn: function(r) { return true; }
   },
   {
     id: 7,
@@ -164,11 +168,10 @@ var FMS_STEPS = [
     plannedKey: ["planned3", "planned_3", "planned2", "planned_2", "planned1", "planned_1"],
     actualKey: ["actual3", "actual_3", "actual2", "actual_2", "actual1", "actual_1"],
     idKey: ["indentNumber", "indent_number"],
-    firmKey: ["firmName", "firm"],
-    exactTarget580: true,
-    filterFn: function(r) {
-      return hasVal(r.planned3 || r.planned_3 || r.planned2 || r.planned_2 || r.planned1 || r.planned_1);
-    }
+    firmKey: ["firm_name_match", "firm_name", "firmNameMatch", "firmName", "firm"],
+    liveTable: "indent",            // Live React "Department Approval" screen
+    liveBuilder: "deptApproval",
+    filterFn: function(r) { return true; }
   },
   {
     id: 8,
@@ -180,7 +183,7 @@ var FMS_STEPS = [
     idKey: ["indentNumber", "indent_number"],
     firmKey: ["firm_name_match", "firmNameMatch", "firm_name", "firmName", "firm"],
     liveTable: "indent",      // Live Supabase 'indent' table (React Management Approval screen)
-    liveMgmtApproval: true,   // Pending tab + History tab, bilkul React jaisa
+    liveBuilder: "mgmtApproval",   // Pending tab + History tab, bilkul React jaisa
     filterFn: function(r) { return true; }
   },
   {
@@ -227,9 +230,10 @@ var FMS_STEPS = [
     plannedKey: ["planned5", "planned_5", "deliveryDate", "delivery_date"],
     actualKey: ["actual5", "actual_5"],
     idKey: ["poNumber", "po_number", "indentNumber", "indent_number"],
-    firmKey: ["firmNameMatch", "firmName", "firm"],
-    exactTarget525: true, // Matching React Get Purchase screen: 19 Pending + 506 History = 525 records
-    filterFn: function(r) { return hasVal(r.planned5 || r.planned_5); }
+    firmKey: ["firm_name_match", "firmNameMatch", "firm_name", "firmName", "firm"],
+    liveTable: "indent",            // Live React "Lifting / Get Purchase" screen (+ store_in)
+    liveBuilder: "lifting",
+    filterFn: function(r) { return true; }
   },
   {
     id: 13,
@@ -426,8 +430,10 @@ function onOpen() {
       .addItem("Sync Send Debit Note Only (Match: 0 Pending, 0 Done)", "importSendDebitNoteMIS")
       .addItem("Sync HOD Check Only (506 Match: 39 Pending, 467 Done)", "importHODCheckMIS")
       .addItem("Sync Store Check Only (507 Match: 1 Pending, 506 Done)", "importStoreInMIS")
-      .addItem("Sync Department Approval Only (580 Match: 0 Pending, 580 Done)", "importThreePartyApprovalMIS")
-      .addItem("Sync Lifting Only (525 Match: 19 Pending, 506 Done)", "importLiftingMIS")
+      .addItem("Sync Department Indent Approval Only (Live React Match)", "importApproveIndentMIS")
+      .addItem("Sync Vendor Rate Update Only (Live React Match)", "importVendorRateMIS")
+      .addItem("Sync Department Approval Only (Live React Match)", "importThreePartyApprovalMIS")
+      .addItem("Sync Lifting / Get Purchase Only (Live React Match)", "importLiftingMIS")
       .addItem("Sync Management Approval Only (Live React Match: Pending + History)", "importMISFromSupabase")
       .addSeparator()
       .addItem("⚙️ Setup Supabase Credentials (Permanent)", "promptSupabaseCredentials")
@@ -531,7 +537,7 @@ function processSingleStep(ss, step, cachedSheets) {
   var totalDelaySeconds = 0;
 
   // Audit Data steps (20-24) apna alag React-exact logic use karte hain (niche dekhein)
-  var loopData = (step.auditStage || step.liveMgmtApproval) ? [] : rawData;
+  var loopData = (step.auditStage || step.liveBuilder) ? [] : rawData;
 
   for (var i = 0; i < loopData.length; i++) {
     var item = loopData[i];
@@ -642,9 +648,9 @@ function processSingleStep(ss, step, cachedSheets) {
 
   // Exact target slicing
   var finalRows = [];
-  if (step.liveMgmtApproval) {
-    // Step 8: Management Approval — React screen ka exact Pending tab + History tab (live)
-    var mgmtRes = buildMgmtApprovalRows(rawData, step);
+  if (step.liveBuilder) {
+    // Steps 5, 6, 7, 8, 12: React screen ka exact Pending tab + History tab (live)
+    var mgmtRes = runLiveBuilder(rawData, step);
     pendingRows = mgmtRes.pending;
     completedRows = mgmtRes.completed;
     totalDelaySeconds = mgmtRes.totalDelaySeconds;
@@ -927,7 +933,7 @@ function processSingleStep(ss, step, cachedSheets) {
 
   // Safety check: Never clear or wipe sheet if finalRows is empty, UNLESS step is legitimately 0 matching React!
   if (!finalRows || finalRows.length === 0) {
-    if (step.exactTarget0 || step.auditStage || step.liveMgmtApproval || step.id === 18 || step.id === 19) {
+    if (step.exactTarget0 || step.auditStage || step.liveBuilder || step.id === 18 || step.id === 19) {
       // Clean up fake dummy rows so MIS sheet matches React 0 records!
       // (Audit stages me bhi 0 records legit hain, jaise Reaudit tab me 0 dikhe)
       var targetSheet = ss.getSheetByName(step.sheetName);
@@ -1167,6 +1173,179 @@ function buildMgmtApprovalRows(rawData, step) {
 }
 
 // =========================================================================
+// 5B-2. INDENT SCREENS — EXACT REACT LOGIC (Approve Indent, Vendor Rate, Dept Approval, Lifting)
+// =========================================================================
+
+function runLiveBuilder(rawData, step) {
+  if (step.liveBuilder === "mgmtApproval") return buildMgmtApprovalRows(rawData, step);
+  if (step.liveBuilder === "lifting") return buildLiftingRows(rawData, step);
+  return buildIndentTabRows(rawData, step);
+}
+
+function isNullish(v) { return v === undefined || v === null; }
+
+function anyVendorRank(r) { return !!(r.vendor1_rank || r.vendor2_rank || r.vendor3_rank); }
+
+function sortByIndentDesc(rows) {
+  var copy = rows.slice();
+  copy.sort(function(a, b) {
+    var x = String(reactFieldValue(a, ["indent_number", "indentNumber"]));
+    var y = String(reactFieldValue(b, ["indent_number", "indentNumber"]));
+    return x < y ? 1 : (x > y ? -1 : 0);
+  });
+  return copy;
+}
+
+/**
+ * Department Indent Approval (ApproveIndent.tsx)
+ *   Pending : planned1 bhara & actual1 khali      | History : planned1 & actual1 dono bhare
+ * Vendor Rate Update (VendorUpdate.tsx)
+ *   Pending : planned2 NOT NULL & actual2 NULL     | History : planned2 & actual2 NOT NULL
+ * Department Approval (TechnicalApproval.tsx)
+ *   vendor_type 'Three Party'/'Regular' & planned3 NOT NULL
+ *   Pending : actual3 NULL & koi vendor rank nahi  | History : koi bhi vendor rank bhara
+ */
+function buildIndentTabRows(rawData, step) {
+  var cfg = {
+    approveIndent: { n: 1 },
+    vendorRate:    { n: 2 },
+    deptApproval:  { n: 3 }
+  }[step.liveBuilder];
+
+  var rows = sortByIndentDesc(rawData);
+  var pending = [];
+  var completed = [];
+  var totalDelaySeconds = 0;
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    var plannedRaw = r["planned" + cfg.n];
+    var actualRaw = r["actual" + cfg.n];
+    var isPending = false;
+    var isHistory = false;
+
+    if (step.liveBuilder === "approveIndent") {
+      if (!plannedRaw) continue;
+      isPending = !actualRaw;
+      isHistory = !!actualRaw;
+    } else if (step.liveBuilder === "vendorRate") {
+      if (isNullish(plannedRaw)) continue;
+      isPending = isNullish(actualRaw);
+      isHistory = !isNullish(actualRaw);
+    } else if (step.liveBuilder === "deptApproval") {
+      if (isNullish(plannedRaw)) continue;
+      if (r.vendor_type !== "Three Party" && r.vendor_type !== "Regular") continue;
+      isPending = isNullish(actualRaw) && !anyVendorRank(r);
+      isHistory = anyVendorRank(r);
+    }
+    if (!isPending && !isHistory) continue;
+
+    var idVal = reactFieldValue(r, ["indent_number", "indentNumber"]) || "-";
+    var firm = getLiveFirmName(r, step);
+    var ts = liveDate(r.timestamp);
+    var planned = liveDate(plannedRaw);
+
+    if (isPending) {
+      pending.push(buildLiveMisRow(ts, idVal, firm, planned, "", true).row);
+    } else {
+      var built = buildLiveMisRow(ts, idVal, firm, planned, liveDate(actualRaw), false);
+      totalDelaySeconds += built.delaySeconds;
+      completed.push(built.row);
+    }
+  }
+
+  Logger.log(step.name + " -> Pending: " + pending.length + ", History: " + completed.length);
+  return { pending: pending, completed: completed, totalDelaySeconds: totalDelaySeconds };
+}
+
+/**
+ * Lifting / Get Purchase (GetLift.tsx)
+ * Pending (PO Number wise ek row):
+ *   planned5 bhara, actual5 khali, lifting_status 'Pending'/khali,
+ *   aur (approved qty - received qty) > 0
+ *   approved qty = pending_po_qty > approved_quantity > quantity
+ *   received qty = received_quantity + store_in me us indent ki qty ka total
+ * History (har lift ek row): store_in ki wo entries jinka indent + firm, indent table me mile
+ *   Planned = indent planned5, Actual = store_in timestamp (lift time)
+ */
+function buildLiftingRows(rawData, step) {
+  var storeIn = fetchLiveSupabaseTable("store_in") || [];
+  var str = function(v) { return (v === undefined || v === null) ? "" : String(v); };
+  var num = function(v) { return Number(v) || 0; };
+
+  // store_in qty total per indent + firm
+  var storeQty = {};
+  for (var s = 0; s < storeIn.length; s++) {
+    var sk = str(storeIn[s].indent_no) + "_" + str(storeIn[s].firm_name_match);
+    storeQty[sk] = (storeQty[sk] || 0) + num(storeIn[s].qty);
+  }
+
+  var indents = sortByIndentDesc(rawData);
+  var pending = [];
+  var completed = [];
+  var totalDelaySeconds = 0;
+
+  // ---- Pending (grouped by PO) ----
+  var groupOrder = [];
+  var groups = {};
+  for (var i = 0; i < indents.length; i++) {
+    var r = indents[i];
+    var indentNo = str(r.indent_number);
+    var firmMatch = str(r.firm_name_match);
+
+    var hasPlanned5 = str(r.planned5).trim() !== "";
+    var hasActual5 = str(r.actual5).trim() !== "";
+    var ls = str(r.lifting_status);
+    var isPendingLift = (ls === "Pending" || ls === "");
+    if (!(isPendingLift && hasPlanned5 && !hasActual5)) continue;
+
+    var rawPendingPo = num(r.pending_po_qty);
+    var rawApproved = num(r.approved_quantity);
+    var approvedQty = rawPendingPo > 0 ? rawPendingPo : (rawApproved > 0 ? rawApproved : num(r.quantity));
+    var approvedQtySafe = approvedQty || num(r.quantity);
+    var receivedQty = num(r.received_quantity) + (storeQty[indentNo + "_" + firmMatch] || 0);
+    if (!(approvedQtySafe - receivedQty > 0)) continue;
+
+    var key = str(r.po_number) || ("NO_PO_" + indentNo);
+    if (!groups[key]) {
+      groups[key] = r;
+      groupOrder.push(key);
+    }
+  }
+  for (var g = 0; g < groupOrder.length; g++) {
+    var first = groups[groupOrder[g]];
+    var id = str(first.po_number) || str(first.indent_number) || "-";
+    pending.push(buildLiveMisRow(liveDate(first.timestamp), id, getLiveFirmName(first, step), liveDate(first.planned5), "", true).row);
+  }
+
+  // ---- History (one row per lift in store_in) ----
+  var indentMap = {};
+  for (var j = 0; j < indents.length; j++) {
+    var ik = str(indents[j].indent_number) + "_" + str(indents[j].firm_name_match);
+    indentMap[ik] = indents[j]; // React Map: aakhri wala record rehta hai
+  }
+  var lifts = storeIn.slice();
+  lifts.sort(function(a, b) { // React: indent_no descending
+    var x = str(a.indent_no), y = str(b.indent_no);
+    return x < y ? 1 : (x > y ? -1 : 0);
+  });
+  for (var h = 0; h < lifts.length; h++) {
+    var lift = lifts[h];
+    var ind = indentMap[str(lift.indent_no) + "_" + str(lift.firm_name_match)];
+    if (!ind) continue;
+    var hid = str(ind.po_number) || str(lift.indent_no) || "-";
+    if (str(lift.lift_number)) hid += " (" + str(lift.lift_number) + ")";
+    var built = buildLiveMisRow(liveDate(ind.timestamp), hid, getLiveFirmName(ind, step),
+                                liveDate(ind.planned5), liveDate(lift.timestamp), false);
+    totalDelaySeconds += built.delaySeconds;
+    completed.push(built.row);
+  }
+
+  Logger.log("Lifting -> Pending (PO groups): " + pending.length + ", History (lifts): " + completed.length);
+  return { pending: pending, completed: completed, totalDelaySeconds: totalDelaySeconds };
+}
+
+// =========================================================================
 // 5C. AUDIT DATA (tally_entry) — EXACT REACT AUDIT DATA SCREEN LOGIC
 // =========================================================================
 // React (AuditData.tsx) har row ka stage aise decide karta hai:
@@ -1312,28 +1491,41 @@ function buildAuditStageRows(rawData, step) {
 // =========================================================================
 
 /**
- * Ye function Department Approval (Three Party Approval) ka exact 580 data sync karta hai
- * (0 Pending + 580 Completed) matching React Department Approval screen!
+ * Live React screen (Pending + History) ke saath exact match sync
+ */
+function importLiveIndentStepMIS(stepIndex, title) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var step = FMS_STEPS[stepIndex];
+  var res = processSingleStep(ss, step, {}); // Data live Supabase se aata hai
+  Logger.log("=========================================");
+  Logger.log(title.toUpperCase() + " MIS IMPORT COMPLETE (LIVE, MATCHING REACT SCREEN):");
+  Logger.log("Total Records in Sheet: " + res.total);
+  Logger.log("History (Completed): " + res.completed);
+  Logger.log("Pending: " + res.pending);
+  Logger.log("=========================================");
+  try {
+    SpreadsheetApp.getUi().alert(
+      title + " MIS Synced Successfully",
+      "Total: " + res.total + " records (Pending: " + res.pending + ", History: " + res.completed + ") matching React " + title + " screen!",
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  } catch (e) {}
+  return res;
+}
+
+function importApproveIndentMIS() {
+  return importLiveIndentStepMIS(4, "Department Indent Approval"); // Step 5
+}
+
+function importVendorRateMIS() {
+  return importLiveIndentStepMIS(5, "Vendor Rate Update"); // Step 6
+}
+
+/**
+ * Department Approval (Three Party Approval) — live React match
  */
 function importThreePartyApprovalMIS() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var step7 = FMS_STEPS[6]; // Department Approval (Three Party)
-  var cached = {};
-  var raw = fetchFromWebAPI("INDENT");
-  if (raw && raw.length > 0) cached["INDENT"] = raw;
-
-  var res = processSingleStep(ss, step7, cached);
-  Logger.log("=========================================");
-  Logger.log("DEPARTMENT APPROVAL (THREE PARTY) MIS IMPORT COMPLETE (MATCHING REACT SCREEN):");
-  Logger.log("Total Planned Records in Sheet: " + res.total + " (Target: 580)");
-  Logger.log("Completed: " + res.completed + " (Target: 580)");
-  Logger.log("Pending: " + res.pending + " (Target: 0)");
-  Logger.log("=========================================");
-  SpreadsheetApp.getUi().alert(
-    "Department Approval MIS Synced Successfully",
-    "Total: " + res.total + " records (Pending: " + res.pending + ", Completed: " + res.completed + ") matching React Department Approval screen!",
-    SpreadsheetApp.getUi().ButtonSet.OK
-  );
+  return importLiveIndentStepMIS(6, "Department Approval"); // Step 7
 }
 
 /**
@@ -1554,28 +1746,10 @@ function importSendDebitNoteMIS() {
 }
 
 /**
- * Ye function Lifting (Get Purchase) ka exact 525 data sync karta hai
- * (19 Pending + 506 Completed) matching React screen!
+ * Lifting (Get Purchase) — live React match (Pending PO + Lift History)
  */
 function importLiftingMIS() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var step12 = FMS_STEPS[11]; // Lifting
-  var cached = {};
-  var raw = fetchFromWebAPI("INDENT");
-  if (raw && raw.length > 0) cached["INDENT"] = raw;
-
-  var res = processSingleStep(ss, step12, cached);
-  Logger.log("=========================================");
-  Logger.log("LIFTING MIS IMPORT COMPLETE (MATCHING REACT SCREEN):");
-  Logger.log("Total Planned Records in Sheet: " + res.total + " (Target: 525)");
-  Logger.log("Completed: " + res.completed + " (Target: 506)");
-  Logger.log("Pending: " + res.pending + " (Target: 19)");
-  Logger.log("=========================================");
-  SpreadsheetApp.getUi().alert(
-    "Lifting MIS Synced Successfully",
-    "Total: " + res.total + " records (Pending: " + res.pending + ", Completed: " + res.completed + ")",
-    SpreadsheetApp.getUi().ButtonSet.OK
-  );
+  return importLiveIndentStepMIS(11, "Lifting"); // Step 12
 }
 
 /**
